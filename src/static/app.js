@@ -12,8 +12,15 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => messageEl.classList.add("hidden"), 5000);
   }
 
-  function createParticipantLi(email) {
+  function createParticipantLi(email, activityName) {
     const li = document.createElement("li");
+    
+    const participantContent = document.createElement("div");
+    participantContent.className = "participant-content";
+    participantContent.style.display = "flex";
+    participantContent.style.alignItems = "center";
+    participantContent.style.gap = "10px";
+    
     const avatar = document.createElement("span");
     avatar.className = "participant-avatar";
     const namePart = (email.split("@")[0] || "").replace(/[._\-]/g, " ");
@@ -29,8 +36,31 @@ document.addEventListener("DOMContentLoaded", () => {
     emailSpan.className = "participant-email";
     emailSpan.textContent = email;
 
-    li.appendChild(avatar);
-    li.appendChild(emailSpan);
+    participantContent.appendChild(avatar);
+    participantContent.appendChild(emailSpan);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "delete-btn";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.type = "button";
+    deleteBtn.onclick = async (e) => {
+      e.preventDefault();
+      try {
+        const url = `/activities/${encodeURIComponent(activityName)}/unregister?email=${encodeURIComponent(email)}`;
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `Failed to unregister (${res.status})`);
+        }
+        showMessage(`${email} unregistered from ${activityName}`, "success");
+        await loadActivities();
+      } catch (err) {
+        showMessage(err.message, "error");
+      }
+    };
+
+    li.appendChild(participantContent);
+    li.appendChild(deleteBtn);
     return li;
   }
 
@@ -68,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (Array.isArray(data.participants) && data.participants.length > 0) {
           noParticipants.classList.add("hidden");
-          data.participants.forEach(p => participantsList.appendChild(createParticipantLi(p)));
+          data.participants.forEach(p => participantsList.appendChild(createParticipantLi(p, name)));
         } else {
           noParticipants.classList.remove("hidden");
         }
@@ -102,8 +132,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       const body = await res.json();
       showMessage(body.message || "Signed up successfully", "success");
-      await loadActivities();
       signupForm.reset();
+      await loadActivities();
     } catch (err) {
       showMessage(err.message, "error");
     }
